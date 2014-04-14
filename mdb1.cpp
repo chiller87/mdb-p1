@@ -107,12 +107,11 @@ Mat getCVHist(Mat img) {
 	return hist;
 }
 
-
 // new way: recommended by professor
 // simply run over the image and put the pixel into that bin, the pixel belongs to
-Mat getHist(Mat img) {
+double* getHist(Mat img) {
 	// create hist, initialized with zeros
-	Mat hist(1, HBINS * SBINS * VBINS, CV_64F, 0.0);
+	double *hist = (double *) calloc(sizeof(double), HBINS * SBINS * VBINS);
 	
 	// compute number of pixels of the given image
 	double size = img.rows * img.cols;
@@ -123,7 +122,8 @@ Mat getHist(Mat img) {
 		for(int c = 0; c < img.cols; c++)
 		{
 			// obtain the HSV value of pixel
-			double h = 0, s = 0, v = 0, hbin = 0, sbin = 0, vbin = 0;
+			double h = 0, s = 0, v = 0;
+			int hbin = 0, sbin = 0, vbin = 0;
 			Vec3b pixel = img.at<Vec3b>(r, c);
 			h = pixel[0];
 			s = pixel[1];
@@ -134,7 +134,8 @@ Mat getHist(Mat img) {
 			sbin = (s / SBIN_SIZE);
 			vbin = (v / VBIN_SIZE);
 			// increase value of that bin by (1 / size), to not dismiss large images
-			hist.at<double>(0, (hbin * (SBINS * VBINS)) + (sbin * VBINS) + vbin) += (1.0 / size);
+			hist[(hbin * (SBINS * VBINS)) + (sbin * VBINS) + vbin] += (1.0 / size);
+			//cout << hist[10] << endl;
 		}
 	}
 	return hist;
@@ -142,8 +143,8 @@ Mat getHist(Mat img) {
 
 
 // simply builds the hist of each image in the given list
-list<Mat> buildHists(list<Mat> images) {
-	list<Mat> res;
+list<double*> buildHists(list<Mat> images) {
+	list<double*> res;
 	list<Mat>::iterator iter;
 	for(iter = images.begin(); iter != images.end(); iter++)
 	{
@@ -158,7 +159,7 @@ list<Mat> buildHists(list<Mat> images) {
 
 
 
-double l1dist(Mat h1, Mat h2) {
+double l1dist(double *h1, double *h2) {
 	/*
 	cout << "nrows = " << h1.rows << endl;
 	cout << "ncols = " << h1.cols << endl;
@@ -199,7 +200,7 @@ double l1dist(Mat h1, Mat h2) {
 	double diff = 0.0;
 	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
 	{
-		diff += fabs(h1.at<double>(0, i) - h2.at<double>(0, i));
+		diff += fabs(h1[i] - h2[i]);
 	}
 
 
@@ -251,6 +252,20 @@ class mycomparison
 
 
 
+void clearMemory(list<double *> hists) {
+	list<double *>::iterator iter;
+	
+	for(iter = hists.begin(); iter != hists.end(); iter++)
+	{
+		free(*iter);
+	}
+
+}
+
+
+
+
+
 int main( int argc, char** argv )
 {
 
@@ -279,7 +294,7 @@ int main( int argc, char** argv )
 	// convert reference image to hsv
 	Mat refImagehsv = toHSV(refImage);
 	// build reference hist
-	Mat refHist = getHist(refImagehsv);
+	double *refHist = getHist(refImagehsv);
 	
 	
 	// show the orinal image
@@ -295,10 +310,10 @@ int main( int argc, char** argv )
 	list<Mat> hsvImages = toHSV(images);
 
 	// build hists of hsv-images
-	list<Mat> hists = buildHists(hsvImages);
+	list<double*> hists = buildHists(hsvImages);
 
 
-	list<Mat>::iterator iter = hists.begin();
+	list<double*>::iterator iter = hists.begin();
 	list<Mat>::iterator iterImg = images.begin();	
 	priority_queue<pair <double, Mat>, vector<pair<double, Mat> >, mycomparison > pq(mycomparison(true));
 
@@ -326,6 +341,14 @@ int main( int argc, char** argv )
 	
 
 	waitKey(0);
+	
+
+
+
+	// clean up
+	clearMemory(hists);
+	free(refHist);
+
 
 	return 0;
 }
