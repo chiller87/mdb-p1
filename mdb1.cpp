@@ -208,6 +208,58 @@ double l1dist(double *h1, double *h2) {
 }
 
 
+
+
+
+
+double l2dist(double *h1, double *h2) {
+	
+	double diff = 0.0;
+
+	
+	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
+	{
+		diff += (h1[i] - h2[i]) * (h1[i] - h2[i]);
+	}
+	
+	return sqrt(diff);
+}
+
+
+
+double binsetHammingDist(double *h1, double *h2) {
+	
+	double diff = 0.0;
+	
+	double sum1 = 0.0, sum2 = 0.0;
+
+	double t = 0.01;
+	unsigned int *s1 = (unsigned int *) calloc(sizeof(unsigned int), HBINS * SBINS * VBINS);
+	unsigned int *s2 = (unsigned int *) calloc(sizeof(unsigned int), HBINS * SBINS * VBINS);
+	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
+	{
+		if(h1[i] > t)
+			s1[i] = 1;
+		else
+			s1[i] = 0;
+		
+		if(h2[i] > t)
+			s2[i] = 1;
+		else
+			s2[i] = 0;
+
+		if(s1[i] ^ s2[i])
+			diff++;
+	}
+	
+	return diff;
+}
+
+
+
+
+
+
 // converts one image into an HSV-image
 Mat toHSV(Mat image) {
 	Mat hsv;
@@ -270,13 +322,26 @@ int main( int argc, char** argv )
 {
 
 	string filename = "bilder/220px-Bananas.jpg";
-
+	double (*distFunc)(double *, double *);
+	distFunc = &l1dist;
 
 	for(int i = 0; i < argc; i++)
 	{
 		if(strcmp(argv[i], "-ref") == 0 && i+1 < argc)
 		{
 			filename = argv[++i];
+		}
+		else if(strcmp(argv[i], "l1") == 0)
+		{
+			distFunc = &l1dist;
+		}
+		else if(strcmp(argv[i], "l2") == 0)
+		{
+			distFunc = &l2dist;
+		}
+		else if(strcmp(argv[i], "bshd") == 0)
+		{
+			distFunc = &binsetHammingDist;
 		}
 	}
 	
@@ -322,7 +387,7 @@ int main( int argc, char** argv )
 	for(iter = hists.begin(), iterImg = images.begin(); iter != hists.end(); iter++, iterImg++)
 	{
 	
-		double diff = l1dist(refHist, (*iter));
+		double diff = distFunc(refHist, (*iter));
 		pq.push(pair<double, Mat>(diff, (*iterImg)));
 	}
 	
