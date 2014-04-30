@@ -20,6 +20,10 @@
 #define SBINS 3
 #define VBINS 3
 
+const double DHMAX = 360;
+const double DSMAX = 1;
+const double DVMAX = 1;
+
 const int HBIN_SIZE = HMAX / HBINS;
 const int SBIN_SIZE = SMAX / SBINS;
 const int VBIN_SIZE = VMAX / VBINS;
@@ -260,6 +264,173 @@ double binsetHammingDist(double *h1, double *h2) {
 
 
 
+double crosstalkDist(double *h1, double *h2) {
+	
+
+	double a[HBINS * SBINS * VBINS][HBINS * SBINS * VBINS];
+
+	double dmax = 0.0;
+	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
+	{
+		for(int j = 0; j < (HBINS * SBINS * VBINS); j++)
+		{
+			// parse HSV bins out of pos
+			int x = i;
+			int hbinx = x / (SBINS * VBINS);
+			x = x % (SBINS * VBINS);
+			int sbinx = x / VBINS;
+			x = x % VBINS;
+			int vbinx = x;
+			
+			//cout << "hbinx = " << hbinx << endl;
+			//cout << "sbinx = " << sbinx << endl;
+
+			int y = j;
+			int hbiny = y / (SBINS * VBINS);
+			y = y % (SBINS * VBINS);
+			int sbiny = y / VBINS;
+			y = y % VBINS;
+			int vbiny = x;
+			
+			// compute centroids of each value
+			double hx = hbinx * (DHMAX / HBINS) + (DHMAX / (2 * HBINS));
+			double sx = sbinx * (DSMAX / SBINS) + (DSMAX / (2 * SBINS));
+			double vx = vbinx * (DVMAX / VBINS) + (DVMAX / (2 * VBINS));
+			
+			// cout << "hx = " << hx << endl;
+			//cout << "sx = " << sx << endl;
+
+			double hy = hbiny * (DHMAX / HBINS) + (DHMAX / (2 * HBINS));
+			double sy = sbiny * (DSMAX / SBINS) + (DSMAX / (2 * SBINS));
+			double vy = vbiny * (DVMAX / VBINS) + (DVMAX / (2 * VBINS));
+
+			double theta;
+			if(fabs(hx - hy) <= 180)
+				theta = fabs(hx - hy);
+			else
+				theta = 360 - fabs(hx - hy);
+			//cout << "theta = " << theta << endl;
+			double dc = sqrt(pow(sx, 2.0) + pow(sy, 2.0) - (2 * sx * sy * cos(theta)));
+			//cout << "dc = " << dc << endl;
+			
+			double dv = fabs(vx - vy);
+			double dcyl = sqrt(pow(dv, 2.0) + pow(dc, 2.0));
+			
+			//cout << dcyl << endl;
+			
+			a[i][j] = dcyl;
+			if(dcyl > dmax)
+				dmax = dcyl;
+		}
+	}
+
+	//cout << "dmax = " << dmax << endl;
+
+	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
+	{
+		for(int j = 0; j < (HBINS * SBINS * VBINS); j++)
+		{
+			// a_ij = 1 - (d(ci, cj) / d_max)
+			a[i][j] = 1 - (a[i][j] / dmax);
+			//cout << "a[i][j] = " << a[i][j] << endl;
+		}
+	}
+
+
+
+
+	
+	double diff = 0.0;
+
+	
+	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
+	{
+		for(int j = 0; j < (HBINS * SBINS * VBINS); j++)
+		{
+			if(a[i][j] != a[j][i])
+				cout << "fail!" << endl;
+			if(i == j && a[i][j] != 1)
+				cout << "fehl!" << endl;
+			diff += (h1[i] - h2[i]) * a[i][j] * (h1[j] - h2[j]);
+		}
+	}
+
+	
+	return sqrt(diff);
+}
+
+
+double meanColorDist(double *h1, double *h2) {
+	
+	double diff = 0.0;
+
+	
+	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
+	{
+		diff += (h1[i] - h2[i]) * (h1[i] - h2[i]);
+	}
+	
+	return sqrt(diff);
+}
+
+
+
+double meanVarDist(double *h1, double *h2) {
+	
+	double diff = 0.0;
+
+	
+	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
+	{
+		diff += (h1[i] - h2[i]) * (h1[i] - h2[i]);
+	}
+	
+	return sqrt(diff);
+}
+
+
+
+
+double chi2Dist(double *h1, double *h2) {
+	
+	double diff = 0.0;
+
+	
+	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
+	{
+		diff += (h1[i] - h2[i]) * (h1[i] - h2[i]);
+	}
+	
+	return sqrt(diff);
+}
+
+
+
+
+
+double jdDist(double *h1, double *h2) {
+	
+	double diff = 0.0;
+
+	
+	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
+	{
+		diff += (h1[i] - h2[i]) * (h1[i] - h2[i]);
+	}
+	
+	return sqrt(diff);
+}
+
+
+
+
+
+
+
+
+
+
+
 // converts one image into an HSV-image
 Mat toHSV(Mat image) {
 	Mat hsv;
@@ -318,6 +489,14 @@ void clearMemory(list<double *> hists) {
 
 
 
+
+
+
+
+
+
+
+
 int main( int argc, char** argv )
 {
 
@@ -343,6 +522,30 @@ int main( int argc, char** argv )
 		{
 			distFunc = &binsetHammingDist;
 		}
+		else if(strcmp(argv[i], "cross") == 0)
+		{
+			distFunc = &crosstalkDist;
+		}
+		else if(strcmp(argv[i], "mcol") == 0)
+		{
+			distFunc = &meanColorDist;
+		}
+		else if(strcmp(argv[i], "mvar") == 0)
+		{
+			distFunc = &meanVarDist;
+		}
+		else if(strcmp(argv[i], "chi") == 0)
+		{
+			distFunc = &chi2Dist;
+		}
+		else if(strcmp(argv[i], "jd") == 0)
+		{
+			distFunc = &jdDist;
+		}
+
+		
+
+
 	}
 	
 
