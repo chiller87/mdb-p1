@@ -365,10 +365,37 @@ double meanColorDist(double *h1, double *h2) {
 	double diff = 0.0;
 
 	
+	double mh1 = 0.0;	
+	double ms1 = 0.0;
+	double mv1 = 0.0;
+	double mh2 = 0.0;
+	double ms2 = 0.0;
+	double mv2 = 0.0;
+
 	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
 	{
-		diff += (h1[i] - h2[i]) * (h1[i] - h2[i]);
+		// parse HSV bins out of pos
+		int x = i;
+		int hbinx = x / (SBINS * VBINS);
+		x = x % (SBINS * VBINS);
+		int sbinx = x / VBINS;
+		x = x % VBINS;
+		int vbinx = x;
+			
+		// compute centroids of each value
+		double hx = hbinx * (DHMAX / HBINS) + (DHMAX / (2 * HBINS));
+		double sx = sbinx * (DSMAX / SBINS) + (DSMAX / (2 * SBINS));
+		double vx = vbinx * (DVMAX / VBINS) + (DVMAX / (2 * VBINS));
+		
+		mh1 += h1[i] * hx;
+		mh2 += h2[i] * hx;
+		ms1 += h1[i] * sx;
+		ms2 += h2[i] * sx;
+		mv1 += h1[i] * vx;
+		mv2 += h2[i] * vx;
 	}
+
+	diff = pow(mh1 - mh2, 2.0) + pow(ms1 - ms2, 2.0) + pow(mv1 - mv2, 2.0);
 	
 	return sqrt(diff);
 }
