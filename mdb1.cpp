@@ -406,13 +406,92 @@ double meanVarDist(double *h1, double *h2) {
 	
 	double diff = 0.0;
 
-	
+	double mh1 = 0.0;	
+	double ms1 = 0.0;
+	double mv1 = 0.0;
+	double mh2 = 0.0;
+	double ms2 = 0.0;
+	double mv2 = 0.0;
+
 	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
 	{
-		diff += (h1[i] - h2[i]) * (h1[i] - h2[i]);
+		// parse HSV bins out of pos
+		int x = i;
+		int hbinx = x / (SBINS * VBINS);
+		x = x % (SBINS * VBINS);
+		int sbinx = x / VBINS;
+		x = x % VBINS;
+		int vbinx = x;
+			
+		// compute centroids of each value
+		double hx = hbinx * (DHMAX / HBINS) + (DHMAX / (2 * HBINS));
+		double sx = sbinx * (DSMAX / SBINS) + (DSMAX / (2 * SBINS));
+		double vx = vbinx * (DVMAX / VBINS) + (DVMAX / (2 * VBINS));
+		
+		mh1 += h1[i] * hx;
+		mh2 += h2[i] * hx;
+		ms1 += h1[i] * sx;
+		ms2 += h2[i] * sx;
+		mv1 += h1[i] * vx;
+		mv2 += h2[i] * vx;
 	}
 	
-	return sqrt(diff);
+
+	
+	double varh1 = 0.0;	
+	double vars1 = 0.0;
+	double varv1 = 0.0;
+	double varh2 = 0.0;
+	double vars2 = 0.0;
+	double varv2 = 0.0;
+	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
+	{
+		
+		// parse HSV bins out of pos
+		int x = i;
+		int hbinx = x / (SBINS * VBINS);
+		x = x % (SBINS * VBINS);
+		int sbinx = x / VBINS;
+		x = x % VBINS;
+		int vbinx = x;
+			
+		// compute centroids of each value
+		double hx = hbinx * (DHMAX / HBINS) + (DHMAX / (2 * HBINS));
+		double sx = sbinx * (DSMAX / SBINS) + (DSMAX / (2 * SBINS));
+		double vx = vbinx * (DVMAX / VBINS) + (DVMAX / (2 * VBINS));
+
+		varh1 += pow((hx - mh1), 2.0) * h1[i];
+		vars1 += pow((sx - ms1), 2.0) * h1[i];
+		varv1 += pow((vx - mv1), 2.0) * h1[i];
+
+
+		varh2 += pow((hx - mh2), 2.0) * h2[i];
+		vars2 += pow((sx - ms2), 2.0) * h2[i];
+		varv2 += pow((vx - mv2), 2.0) * h2[i];
+	}
+
+	diff = pow(varh1 - varh2, 2.0) + pow(vars1 - vars2, 2.0) + pow(varv1 - varv2, 2.0);
+	/*
+	double mu1 = 0.0, mu2 = 0.0;
+	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
+	{
+		mu1 += i * h1[i];
+		mu2 += i * h2[i];
+	}
+
+	mu1 /= (HBINS * SBINS * VBINS);
+	mu2 /= (HBINS * SBINS * VBINS);
+
+	cout << "mu1 = " << mu1 << ", mu2 = " << mu2 << endl;
+
+	double var1 = 0.0, var2 = 0.0;
+	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
+	{
+		var1 += pow((i - mu1), 2.0) * (i * (h1[i]) / (HBINS * SBINS * VBINS));
+		var2 += pow((i - mu2), 2.0) * (i * (h2[i]) / (HBINS * SBINS * VBINS));
+	}*/
+	
+	return diff;
 }
 
 
@@ -425,10 +504,12 @@ double chi2Dist(double *h1, double *h2) {
 	
 	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
 	{
-		diff += (h1[i] - h2[i]) * (h1[i] - h2[i]);
+		double hi = (h1[i] + h2[i]) / 2.0;
+		if(hi != 0)	
+			diff += pow((h1[i] - hi), 2.0) / hi;
 	}
 	
-	return sqrt(diff);
+	return diff;
 }
 
 
@@ -442,10 +523,14 @@ double jdDist(double *h1, double *h2) {
 	
 	for(int i = 0; i < (HBINS * SBINS * VBINS); i++)
 	{
-		diff += (h1[i] - h2[i]) * (h1[i] - h2[i]);
+		double hi = (h1[i] + h2[i]) / 2.0;
+		double sum1 = h1[i] * log(h1[i]/hi);
+		double sum2 = h2[i] * log(h2[i]/hi);
+		if(hi != 0)
+			diff += (h1[i] - h2[i]) * (h1[i] - h2[i]);
 	}
 	
-	return sqrt(diff);
+	return diff;
 }
 
 
@@ -527,7 +612,7 @@ void clearMemory(list<double *> hists) {
 int main( int argc, char** argv )
 {
 
-	string filename = "bilder/220px-Bananas.jpg";
+	string filename = "bilder/coffee2.jpg";
 	double (*distFunc)(double *, double *);
 	distFunc = &l1dist;
 
@@ -629,7 +714,11 @@ int main( int argc, char** argv )
 		pq.pop();
 		ostringstream os;
 		os << "rank " << i;
-		namedWindow(os.str(), CV_WINDOW_AUTOSIZE);
+		namedWindow(os.str(), CV_WINDOW_NORMAL);
+		resizeWindow(os.str(), 180, 180);
+		int posx = (i-1)*190;
+		int posy = 10;
+		moveWindow(os.str(), posx, posy);
 		imshow(os.str(), p.second);
 		cout << os.str() << " with diff = " << p.first << endl; 
 	}
